@@ -16,8 +16,15 @@ SCHEMA_SQL = Path(__file__).resolve().parent / "db" / "schema.sql"
 
 # Таблицы, добавленные миграциями после версии 2 схемы: их нет в schema.sql
 # (он — снимок сданной и прошедшей ревью версии), проверяются отдельно.
-POST_V2_TABLES = {"refresh_token": "0002", "program_region": "0003"}
-POST_V2_COLUMNS = {"org_profile": {"category_id"}}  # миграция 0003
+POST_V2_TABLES = {
+    "refresh_token": "0002",
+    "program_region": "0003",
+    "application_history": "0004",
+}
+POST_V2_COLUMNS = {
+    "org_profile": {"category_id"},  # миграция 0003
+    "application": {"comment"},  # миграция 0004
+}
 
 CREATE_TABLE = re.compile(r"CREATE TABLE (\w+) \((.*?)\n\);", re.S)
 # Колонка — строка с отступом ровно 4 пробела, имя в нижнем регистре, далее тип.
