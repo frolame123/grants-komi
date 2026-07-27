@@ -4,8 +4,13 @@
 в документацию OpenAPI.
 """
 
+from datetime import date
+from decimal import Decimal
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
+from app.inn import validate_inn
 from app.security import validate_password
 
 
@@ -84,3 +89,73 @@ class UserOut(BaseModel):
 
 class MessageOut(BaseModel):
     detail: str
+
+
+class OrgProfileIn(BaseModel):
+    """Профиль организации (FR-003). Обязательны тип, ИНН и отрасль."""
+
+    org_type: Literal["IP", "OOO", "NKO", "SMZ"]
+    inn: str
+    category_id: int = Field(description="Отрасль — значение справочника категорий")
+    city: str = Field(min_length=2, max_length=100)
+    street: str | None = Field(None, max_length=150)
+    house: str | None = Field(None, max_length=20)
+    org_size: Literal["micro", "small", "medium"] | None = None
+    goal: str | None = Field(None, max_length=300)
+    region: str = Field("Республика Коми", max_length=100)
+
+    @model_validator(mode="after")
+    def check_inn(self) -> "OrgProfileIn":
+        validate_inn(self.inn, self.org_type)
+        return self
+
+
+class OrgProfileOut(BaseModel):
+    profile_id: int
+    org_type: str
+    inn: str
+    category_id: int | None
+    city: str
+    street: str | None
+    house: str | None
+    org_size: str | None
+    goal: str | None
+    region: str
+
+    model_config = {"from_attributes": True}
+
+
+class CategoryOut(BaseModel):
+    category_id: int
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
+class ProgramOut(BaseModel):
+    """Карточка программы. Число дней до срока вычисляется, а не хранится (FR-014)."""
+
+    program_id: int
+    title: str
+    organizer: str
+    amount: Decimal | None
+    deadline: date | None
+    days_left: int | None
+    status: str
+    category_id: int | None
+    category: str | None
+    source: str
+    source_url: str
+    applicant_types: list[str]
+    regions: list[str]
+    extra_json: dict
+    match: int | None = Field(None, description="Степень соответствия профилю, % (FR-005)")
+
+
+class PageOut(BaseModel):
+    """Страница выдачи каталога и подбора."""
+
+    items: list[ProgramOut]
+    page: int
+    page_size: int
+    total: int
