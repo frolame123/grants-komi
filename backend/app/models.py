@@ -78,6 +78,25 @@ class PasswordResetToken(Base):
     )
 
 
+class RefreshToken(Base):
+    """Выданные токены обновления — перечень для отзыва при выходе (FR-010).
+
+    Добавлена миграцией 0002: схема версии 2 отзыв refresh-токена не
+    поддерживала, хотя FR-010 его требует.
+    """
+
+    __tablename__ = "refresh_token"
+
+    token_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("app_user.user_id", ondelete="CASCADE"))
+    jti: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+
+
 class OrgProfile(Base):
     """Профиль организации-заявителя, связь 1:1 с app_user (FR-003)."""
 

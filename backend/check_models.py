@@ -14,6 +14,10 @@ from app import models  # noqa: F401  — регистрация моделей 
 
 SCHEMA_SQL = Path(__file__).resolve().parent / "db" / "schema.sql"
 
+# Таблицы, добавленные миграциями после версии 2 схемы: их нет в schema.sql
+# (он — снимок сданной и прошедшей ревью версии), проверяются отдельно.
+POST_V2_TABLES = {"refresh_token": "0002"}
+
 CREATE_TABLE = re.compile(r"CREATE TABLE (\w+) \((.*?)\n\);", re.S)
 # Колонка — строка с отступом ровно 4 пробела, имя в нижнем регистре, далее тип.
 # Ограничения (CONSTRAINT/CHECK/OR) и продолжения строк под это не подходят.
@@ -38,9 +42,12 @@ def main() -> None:
     orm = {t.name: {c.name for c in t.columns} for t in Base.metadata.tables.values()}
 
     only_in_schema = set(schema) - set(orm)
-    only_in_orm = set(orm) - set(schema)
+    only_in_orm = set(orm) - set(schema) - set(POST_V2_TABLES)
     assert not only_in_schema, f"таблицы есть в schema.sql, но нет моделей: {only_in_schema}"
-    assert not only_in_orm, f"модели есть, но нет таблиц в schema.sql: {only_in_orm}"
+    assert not only_in_orm, (
+        f"модели есть, но нет ни в schema.sql, ни в списке добавленных "
+        f"миграциями: {only_in_orm}"
+    )
 
     for table, columns in schema.items():
         assert orm[table] == columns, (

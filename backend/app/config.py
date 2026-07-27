@@ -17,5 +17,12 @@ class Settings(BaseSettings):
     # Публичный адрес фронтенда — для ссылок в письмах (FR-002, FR-009)
     public_url: str = "http://localhost:5173"
 
+    # Почта. Пустой smtp_host — письма пишутся в журнал приложения (см. app/mail.py)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "no-reply@grantykomi.ru"
+
 
 settings = Settings()
