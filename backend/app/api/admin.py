@@ -186,7 +186,7 @@ def change_status(
 
     write_audit(
         db,
-        action="role_change",
+        action="user_block" if data.status == "blocked" else "user_unblock",
         entity="app_user",
         entity_id=user.user_id,
         user_id=admin.user_id,
