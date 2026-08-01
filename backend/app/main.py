@@ -1,10 +1,16 @@
 """Точка входа REST API «Гранты Коми»."""
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+import logging
 
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
+
+from app.api import auth
 from app.config import settings
+from app.ratelimit import api_requests, client_ip
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Гранты Коми — REST API",
@@ -22,6 +28,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def limit_requests(request: Request, call_next):
+    """Не более 100 запросов в минуту с одного IP-адреса (п. 4.1.4 ТЗ)."""
+    if not api_requests.hit(client_ip(request)):
+        return JSONResponse(
+            {"detail": "Превышено допустимое число запросов, повторите попытку позже"},
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+    return await call_next(request)
+
+
+@app.exception_handler(404)
+async def not_found(request: Request, exc) -> JSONResponse:
+    return JSONResponse({"detail": "Страница не найдена"}, status_code=404)
+
+
+@app.exception_handler(Exception)
+async def internal_error(request: Request, exc: Exception) -> JSONResponse:
+    """Внутренняя ошибка: подробности пишутся в журнал, наружу не выдаются."""
+    log.exception("Необработанная ошибка при обработке %s", request.url.path)
+    return JSONResponse(
+        {"detail": "Технические работы. Попробуйте позже или свяжитесь с поддержкой"},
+        status_code=500,
+    )
+
+
+app.include_router(auth.router)
 
 
 @app.get("/api-docs", include_in_schema=False)
