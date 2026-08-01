@@ -85,6 +85,14 @@ def check_rate_limit() -> None:
     assert window.exceeded("ip")
     assert not window.exceeded("другой-ip"), "лимит считается по каждому ключу отдельно"
 
+    # Граница: при лимите 3 после трёх событий следующее уже запрещено.
+    # Строгое сравнение здесь давало бы одну лишнюю попытку сверх разрешённых
+    boundary = SlidingWindow(limit=3, window_seconds=60)
+    for number in range(1, 4):
+        assert not boundary.exceeded("ip"), f"попытка {number} должна проходить"
+        boundary.hit("ip")
+    assert boundary.exceeded("ip"), "четвёртая попытка должна быть отклонена"
+
     time.sleep(1.1)  # окно сдвинулось — счётчик освободился
     assert not window.exceeded("ip")
 

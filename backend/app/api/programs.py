@@ -17,6 +17,10 @@ router = APIRouter(prefix="/api", tags=["Каталог программ"])
 
 PAGE_SIZE = 20  # п. 4.2.4 ТЗ: 20 записей на страницу
 
+# Статусы, доступные пользователю: опубликована и архив. Черновики и записи
+# на модерации наружу не отдаются ни одним маршрутом
+PUBLIC_STATUSES = ("PUB", "ARCH")
+
 
 def to_out(program: Program, match: int | None = None) -> ProgramOut:
     return ProgramOut(
@@ -154,7 +158,7 @@ def matched_programs(
 def get_program(program_id: int, db: Session = Depends(get_db)) -> ProgramOut:
     """Карточка программы. Черновики и записи на модерации наружу не отдаются."""
     program = db.scalar(with_relations(select(Program).where(Program.program_id == program_id)))
-    if program is None or program.status not in ("PUB", "ARCH"):
+    if program is None or program.status not in PUBLIC_STATUSES:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Программа не найдена")
     return to_out(program)
 
@@ -165,10 +169,12 @@ def list_favorites(
     user: AppUser = Depends(get_current_user),
     page: int = Query(1, ge=1),
 ) -> PageOut:
+    # Черновики и карточки на модерации не показываются даже владельцу
+    # избранного: наружу отдаются только опубликованные и архивные программы
     statement = (
         select(Program)
         .join(Favorite, Favorite.program_id == Program.program_id)
-        .where(Favorite.user_id == user.user_id)
+        .where(Favorite.user_id == user.user_id, Program.status.in_(PUBLIC_STATUSES))
     )
     total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
     statement = with_relations(statement).order_by(Program.deadline.asc())
@@ -188,7 +194,8 @@ def add_favorite(
     db: Session = Depends(get_db),
     user: AppUser = Depends(get_current_user),
 ) -> MessageOut:
-    if db.get(Program, program_id) is None:
+    program = db.get(Program, program_id)
+    if program is None or program.status not in PUBLIC_STATUSES:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Программа не найдена")
 
     existing = db.scalar(

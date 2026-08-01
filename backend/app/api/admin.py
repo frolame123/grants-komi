@@ -14,6 +14,7 @@ from app import mail
 from app.api.deps import require_role
 from app.audit import write_audit
 from app.db import get_db
+from app.ratelimit import client_ip
 from app.models import AppUser, OrgProfile, PasswordResetToken, RefreshToken
 from app.rbac import (
     ROLE_NAMES,
@@ -154,7 +155,7 @@ def change_role(
         entity="app_user",
         entity_id=user.user_id,
         user_id=admin.user_id,
-        ip=request.client.host if request.client else None,
+        ip=client_ip(request),
     )
     db.commit()
 
@@ -190,7 +191,7 @@ def change_status(
         entity="app_user",
         entity_id=user.user_id,
         user_id=admin.user_id,
-        ip=request.client.host if request.client else None,
+        ip=client_ip(request),
     )
     db.commit()
 
@@ -229,7 +230,7 @@ def send_password_reset(
         entity="app_user",
         entity_id=user.user_id,
         user_id=admin.user_id,
-        ip=request.client.host if request.client else None,
+        ip=client_ip(request),
     )
     db.commit()
 
