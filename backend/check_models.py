@@ -16,7 +16,8 @@ SCHEMA_SQL = Path(__file__).resolve().parent / "db" / "schema.sql"
 
 # Таблицы, добавленные миграциями после версии 2 схемы: их нет в schema.sql
 # (он — снимок сданной и прошедшей ревью версии), проверяются отдельно.
-POST_V2_TABLES = {"refresh_token": "0002"}
+POST_V2_TABLES = {"refresh_token": "0002", "program_region": "0003"}
+POST_V2_COLUMNS = {"org_profile": {"category_id"}}  # миграция 0003
 
 CREATE_TABLE = re.compile(r"CREATE TABLE (\w+) \((.*?)\n\);", re.S)
 # Колонка — строка с отступом ровно 4 пробела, имя в нижнем регистре, далее тип.
@@ -50,9 +51,10 @@ def main() -> None:
     )
 
     for table, columns in schema.items():
-        assert orm[table] == columns, (
+        actual = orm[table] - POST_V2_COLUMNS.get(table, set())
+        assert actual == columns, (
             f"таблица {table}: расхождение колонок; "
-            f"нет в модели: {columns - orm[table]}, лишние в модели: {orm[table] - columns}"
+            f"нет в модели: {columns - actual}, лишние в модели: {actual - columns}"
         )
 
     print(f"OK: {len(schema)} таблиц, {sum(len(c) for c in schema.values())} колонок совпадают")

@@ -116,8 +116,13 @@ class OrgProfile(Base):
     region: Mapped[str] = mapped_column(
         String(100), server_default=text("'Республика Коми'")
     )
+    # Отрасль деятельности — ссылка на справочник категорий (миграция 0003)
+    category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("category.category_id", ondelete="SET NULL")
+    )
 
     user: Mapped[AppUser] = relationship(back_populates="profile")
+    category: Mapped["Category | None"] = relationship()
 
 
 class Source(Base):
@@ -167,6 +172,9 @@ class Program(Base):
     applicant_types: Mapped[list["ProgramApplicantType"]] = relationship(
         back_populates="program", cascade="all, delete-orphan"
     )
+    regions: Mapped[list["ProgramRegion"]] = relationship(
+        back_populates="program", cascade="all, delete-orphan"
+    )
 
     @property
     def days_left(self) -> int | None:
@@ -190,6 +198,19 @@ class ProgramApplicantType(Base):
     applicant_type: Mapped[str] = mapped_column(String(10), primary_key=True)
 
     program: Mapped[Program] = relationship(back_populates="applicant_types")
+
+
+class ProgramRegion(Base):
+    """Регионы действия программы — многозначный атрибут в 1НФ (миграция 0003)."""
+
+    __tablename__ = "program_region"
+
+    program_id: Mapped[int] = mapped_column(
+        ForeignKey("program.program_id", ondelete="CASCADE"), primary_key=True
+    )
+    region: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+    program: Mapped[Program] = relationship(back_populates="regions")
 
 
 class Favorite(Base):
