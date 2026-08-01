@@ -4,7 +4,7 @@
 в документацию OpenAPI.
 """
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -150,6 +150,43 @@ class ProgramOut(BaseModel):
     regions: list[str]
     extra_json: dict
     match: int | None = Field(None, description="Степень соответствия профилю, % (FR-005)")
+
+
+class ApplicationCreate(BaseModel):
+    """Создание заявки: черновик по выбранной программе (FR-008)."""
+
+    program_id: int
+    comment: str | None = Field(None, max_length=500)
+
+
+class ApplicationTransition(BaseModel):
+    """Перевод заявки в следующий статус."""
+
+    status: Literal["PREP", "SENT", "RES"]
+    result: Literal["APPROVED", "REJECTED"] | None = None
+    comment: str | None = Field(None, max_length=500)
+
+
+class HistoryOut(BaseModel):
+    status: str
+    status_name: str
+    comment: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ApplicationOut(BaseModel):
+    application_id: int
+    program_id: int
+    program_title: str
+    status: str
+    status_name: str
+    status_date: date
+    result: str | None
+    comment: str | None
+    program_archived: bool = Field(description="Признак «программа завершена» (п. 4.2.8 ТЗ)")
+    history: list[HistoryOut]
 
 
 class PageOut(BaseModel):

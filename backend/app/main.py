@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.api import auth, profile, programs
+from app.api import applications, auth, profile, programs
 from app.config import settings
 from app.ratelimit import api_requests, client_ip
 
@@ -59,6 +59,7 @@ async def internal_error(request: Request, exc: Exception) -> JSONResponse:
 app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(programs.router)
+app.include_router(applications.router)
 
 
 @app.get("/api-docs", include_in_schema=False)

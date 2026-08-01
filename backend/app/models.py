@@ -240,9 +240,36 @@ class Application(Base):
     status: Mapped[str] = mapped_column(String(10), default="DRAFT")
     status_date: Mapped[date] = mapped_column(Date, server_default=func.current_date())
     result: Mapped[str | None] = mapped_column(String(10))
+    comment: Mapped[str | None] = mapped_column(String(500))  # миграция 0004
 
     user: Mapped[AppUser] = relationship(back_populates="applications")
     program: Mapped[Program] = relationship()
+    history: Mapped[list["ApplicationHistory"]] = relationship(
+        back_populates="application",
+        cascade="all, delete-orphan",
+        order_by="ApplicationHistory.history_id",
+    )
+
+
+class ApplicationHistory(Base):
+    """История переходов заявки: статус, дата, инициатор (миграция 0004)."""
+
+    __tablename__ = "application_history"
+
+    history_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(
+        ForeignKey("application.application_id", ondelete="CASCADE")
+    )
+    status: Mapped[str] = mapped_column(String(10))
+    comment: Mapped[str | None] = mapped_column(String(500))
+    initiator_id: Mapped[int | None] = mapped_column(
+        ForeignKey("app_user.user_id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+
+    application: Mapped[Application] = relationship(back_populates="history")
 
 
 class ModerationQueue(Base):
