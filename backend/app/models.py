@@ -138,12 +138,29 @@ class Source(Base):
 
 
 class Category(Base):
-    """Категория программы (справочник, FR-016)."""
+    """Категория программы; она же отрасль профиля (справочник, FR-016).
+
+    Поля регламента ведения добавлены миграцией 0007: значение предлагает
+    контент-менеджер, утверждает администратор, дубли объединяются вместо
+    удаления.
+    """
 
     __tablename__ = "category"
 
     category_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True)
+    status: Mapped[str] = mapped_column(String(10), server_default=text("'approved'"))
+    proposed_by: Mapped[int | None] = mapped_column(
+        ForeignKey("app_user.user_id", ondelete="SET NULL")
+    )
+    merged_into_id: Mapped[int | None] = mapped_column(
+        ForeignKey("category.category_id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+
+    merged_into: Mapped["Category | None"] = relationship(remote_side=[category_id])
 
 
 class Program(Base):

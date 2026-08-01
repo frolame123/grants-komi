@@ -132,6 +132,28 @@ class CategoryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CategoryAdminOut(BaseModel):
+    """Значение справочника в панели управления (FR-016)."""
+
+    category_id: int
+    name: str
+    status: str
+    status_name: str
+    proposed_by: int | None
+    merged_into_id: int | None
+    created_at: datetime
+    usage_programs: int
+    usage_profiles: int
+
+
+class CategoryIn(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+
+
+class CategoryMergeIn(BaseModel):
+    target_id: int = Field(description="Значение, с которым объединяется дубль")
+
+
 class ProgramOut(BaseModel):
     """Карточка программы. Число дней до срока вычисляется, а не хранится (FR-014)."""
 
