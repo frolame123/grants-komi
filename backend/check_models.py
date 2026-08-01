@@ -24,6 +24,7 @@ POST_V2_TABLES = {
 POST_V2_COLUMNS = {
     "org_profile": {"category_id"},  # миграция 0003
     "application": {"comment"},  # миграция 0004
+    "app_user": {"last_active_at"},  # миграция 0005
 }
 
 CREATE_TABLE = re.compile(r"CREATE TABLE (\w+) \((.*?)\n\);", re.S)

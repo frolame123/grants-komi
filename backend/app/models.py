@@ -41,6 +41,7 @@ class AppUser(Base):
         DateTime, server_default=func.current_timestamp()
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime)  # миграция 0005
 
     profile: Mapped["OrgProfile | None"] = relationship(back_populates="user")
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="user")
