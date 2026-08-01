@@ -41,6 +41,7 @@ class AppUser(Base):
         DateTime, server_default=func.current_timestamp()
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime)  # миграция 0005
 
     profile: Mapped["OrgProfile | None"] = relationship(back_populates="user")
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="user")
@@ -78,6 +79,25 @@ class PasswordResetToken(Base):
     )
 
 
+class RefreshToken(Base):
+    """Выданные токены обновления — перечень для отзыва при выходе (FR-010).
+
+    Добавлена миграцией 0002: схема версии 2 отзыв refresh-токена не
+    поддерживала, хотя FR-010 его требует.
+    """
+
+    __tablename__ = "refresh_token"
+
+    token_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("app_user.user_id", ondelete="CASCADE"))
+    jti: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+
+
 class OrgProfile(Base):
     """Профиль организации-заявителя, связь 1:1 с app_user (FR-003)."""
 
@@ -97,8 +117,13 @@ class OrgProfile(Base):
     region: Mapped[str] = mapped_column(
         String(100), server_default=text("'Республика Коми'")
     )
+    # Отрасль деятельности — ссылка на справочник категорий (миграция 0003)
+    category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("category.category_id", ondelete="SET NULL")
+    )
 
     user: Mapped[AppUser] = relationship(back_populates="profile")
+    category: Mapped["Category | None"] = relationship()
 
 
 class Source(Base):
@@ -148,6 +173,9 @@ class Program(Base):
     applicant_types: Mapped[list["ProgramApplicantType"]] = relationship(
         back_populates="program", cascade="all, delete-orphan"
     )
+    regions: Mapped[list["ProgramRegion"]] = relationship(
+        back_populates="program", cascade="all, delete-orphan"
+    )
 
     @property
     def days_left(self) -> int | None:
@@ -171,6 +199,19 @@ class ProgramApplicantType(Base):
     applicant_type: Mapped[str] = mapped_column(String(10), primary_key=True)
 
     program: Mapped[Program] = relationship(back_populates="applicant_types")
+
+
+class ProgramRegion(Base):
+    """Регионы действия программы — многозначный атрибут в 1НФ (миграция 0003)."""
+
+    __tablename__ = "program_region"
+
+    program_id: Mapped[int] = mapped_column(
+        ForeignKey("program.program_id", ondelete="CASCADE"), primary_key=True
+    )
+    region: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+    program: Mapped[Program] = relationship(back_populates="regions")
 
 
 class Favorite(Base):
@@ -200,9 +241,36 @@ class Application(Base):
     status: Mapped[str] = mapped_column(String(10), default="DRAFT")
     status_date: Mapped[date] = mapped_column(Date, server_default=func.current_date())
     result: Mapped[str | None] = mapped_column(String(10))
+    comment: Mapped[str | None] = mapped_column(String(500))  # миграция 0004
 
     user: Mapped[AppUser] = relationship(back_populates="applications")
     program: Mapped[Program] = relationship()
+    history: Mapped[list["ApplicationHistory"]] = relationship(
+        back_populates="application",
+        cascade="all, delete-orphan",
+        order_by="ApplicationHistory.history_id",
+    )
+
+
+class ApplicationHistory(Base):
+    """История переходов заявки: статус, дата, инициатор (миграция 0004)."""
+
+    __tablename__ = "application_history"
+
+    history_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(
+        ForeignKey("application.application_id", ondelete="CASCADE")
+    )
+    status: Mapped[str] = mapped_column(String(10))
+    comment: Mapped[str | None] = mapped_column(String(500))
+    initiator_id: Mapped[int | None] = mapped_column(
+        ForeignKey("app_user.user_id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+
+    application: Mapped[Application] = relationship(back_populates="history")
 
 
 class ModerationQueue(Base):
