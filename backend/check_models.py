@@ -26,6 +26,13 @@ POST_V2_COLUMNS = {
     "application": {"comment"},  # миграция 0004
     "app_user": {"last_active_at"},  # миграция 0005
     "category": {"status", "proposed_by", "merged_into_id", "created_at"},  # миграция 0007
+    "audit_log": {"details"},  # миграция 0008
+    "moderation_queue": {  # миграция 0008
+        "reason",
+        "prev_snapshot",
+        "resolved_at",
+        "resolved_by",
+    },
 }
 
 CREATE_TABLE = re.compile(r"CREATE TABLE (\w+) \((.*?)\n\);", re.S)

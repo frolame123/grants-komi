@@ -302,6 +302,13 @@ class ModerationQueue(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )
+    # Поля регламента модерации добавлены миграцией 0008
+    reason: Mapped[str | None] = mapped_column(String(300))
+    prev_snapshot: Mapped[dict | None] = mapped_column(JSONB)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
+    resolved_by: Mapped[int | None] = mapped_column(
+        ForeignKey("app_user.user_id", ondelete="SET NULL")
+    )
 
     program: Mapped[Program] = relationship()
 
@@ -340,3 +347,4 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )
+    details: Mapped[str | None] = mapped_column(String(500))  # миграция 0008

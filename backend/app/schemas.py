@@ -6,7 +6,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -207,6 +207,7 @@ class AuditOut(BaseModel):
     entity: str
     entity_id: int | None
     ip_address: str | None
+    details: str | None
     created_at: datetime
 
 
@@ -260,6 +261,59 @@ class ApplicationOut(BaseModel):
     comment: str | None
     program_archived: bool = Field(description="Признак «программа завершена» (п. 4.2.8 ТЗ)")
     history: list[HistoryOut]
+
+
+class ProgramIn(BaseModel):
+    """Создание и правка карточки программы контент-менеджером (FR-007)."""
+
+    source_id: int
+    category_id: int | None = None
+    title: str = Field(min_length=5, max_length=300)
+    organizer: str = Field(min_length=2, max_length=200)
+    amount: Decimal | None = Field(None, gt=0)
+    deadline: date | None = None
+    source_url: str = Field(min_length=5, max_length=500)
+    applicant_types: list[Literal["IP", "OOO", "NKO", "SMZ"]] = Field(default_factory=list)
+    regions: list[str] = Field(default_factory=list)
+    extra_json: dict = Field(default_factory=dict)
+
+
+class ChangeOut(BaseModel):
+    """Одно расхождение в представлении «было / стало»."""
+
+    field: str
+    field_name: str
+    before: Any = None
+    after: Any = None
+    significant: bool
+
+
+class ModerationOut(BaseModel):
+    """Запись очереди модерации (FR-007)."""
+
+    queue_id: int
+    program_id: int
+    program_title: str
+    program_status: str
+    change_type: str
+    status: str
+    status_name: str
+    reason: str | None
+    created_at: datetime
+    resolved_at: datetime | None
+    resolved_by: int | None
+    changes: list[ChangeOut]
+
+
+class ModerationPageOut(BaseModel):
+    items: list[ModerationOut]
+    page: int
+    page_size: int
+    total: int
+
+
+class RejectIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=300)
 
 
 class PageOut(BaseModel):

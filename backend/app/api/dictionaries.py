@@ -188,6 +188,7 @@ def merge_category(
         entity_id=source.category_id,
         user_id=admin.user_id,
         ip=client_ip(request),
+        details=f"объединено со значением {target.category_id} «{target.name}»",
     )
     db.commit()
     return to_out(db, source)
