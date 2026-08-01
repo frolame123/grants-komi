@@ -174,6 +174,27 @@ class UserPageOut(BaseModel):
     total: int
 
 
+class AuditOut(BaseModel):
+    """Запись журнала аудита (FR-015)."""
+
+    audit_id: int
+    user_id: int | None
+    user_email: str | None
+    action: str
+    action_name: str
+    entity: str
+    entity_id: int | None
+    ip_address: str | None
+    created_at: datetime
+
+
+class AuditPageOut(BaseModel):
+    items: list[AuditOut]
+    page: int
+    page_size: int
+    total: int
+
+
 class RoleChangeIn(BaseModel):
     role: Literal["applicant", "moderator", "admin"]
 
