@@ -13,8 +13,14 @@ def write_audit(
     entity_id: int | None = None,
     user_id: int | None = None,
     ip: str | None = None,
+    details: str | None = None,
 ) -> None:
-    """Запись в журнал. Коммит остаётся за вызывающим кодом."""
+    """Запись в журнал. Коммит остаётся за вызывающим кодом.
+
+    В details попадают подробности события: перечень изменённых полей при
+    правке карточки (FR-007), идентификатор значения при объединении
+    справочника (FR-016).
+    """
     db.add(
         AuditLog(
             user_id=user_id,
@@ -22,5 +28,6 @@ def write_audit(
             entity=entity,
             entity_id=entity_id,
             ip_address=ip,
+            details=details[:500] if details else None,
         )
     )

@@ -6,7 +6,16 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.api import admin, applications, audit_log, auth, dictionaries, profile, programs
+from app.api import (
+    admin,
+    applications,
+    audit_log,
+    auth,
+    dictionaries,
+    moderation,
+    profile,
+    programs,
+)
 from app.config import settings
 from app.ratelimit import api_requests, client_ip
 
@@ -63,6 +72,7 @@ app.include_router(applications.router)
 app.include_router(admin.router)
 app.include_router(audit_log.router)
 app.include_router(dictionaries.router)
+app.include_router(moderation.router)
 
 
 @app.get("/api-docs", include_in_schema=False)
