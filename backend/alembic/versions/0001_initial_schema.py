@@ -37,9 +37,12 @@ TABLES = [
 
 
 def upgrade() -> None:
-    # exec_driver_sql, а не op.execute: в скрипте есть regex с «%» и тело
-    # функции в долларовых кавычках — их не должен трогать разбор параметров
-    op.get_bind().exec_driver_sql(SCHEMA_SQL.read_text(encoding="utf-8"))
+    # Скрипт выполняется курсором драйвера напрямую. В нём есть регулярное
+    # выражение со знаком «%» (проверка адреса почты) и тело функции в
+    # долларовых кавычках: любой слой, который разбирает параметры запроса,
+    # принимает «%» за подстановку и ломается
+    cursor = op.get_bind().connection.cursor()
+    cursor.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
 
 
 def downgrade() -> None:

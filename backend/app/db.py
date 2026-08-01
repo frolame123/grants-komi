@@ -13,7 +13,13 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from app.config import settings
 
 engine = create_engine(settings.database_url, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+# expire_on_commit оставлен включённым (значение по умолчанию). С выключенным
+# после фиксации транзакции объекты сохраняют то состояние, что было прочитано
+# раньше: повторный запрос той же записи возвращает данные из карты объектов
+# сессии, а не из базы. На заявке это проявлялось как неполная история
+# переходов — только что добавленная запись в ответ не попадала.
+SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 
 class Base(DeclarativeBase):
