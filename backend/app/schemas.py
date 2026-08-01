@@ -152,6 +152,36 @@ class ProgramOut(BaseModel):
     match: int | None = Field(None, description="Степень соответствия профилю, % (FR-005)")
 
 
+class UserAdminOut(BaseModel):
+    """Строка списка пользователей в панели управления (FR-012)."""
+
+    user_id: int
+    email: EmailStr
+    role: str
+    role_name: str
+    status: str
+    status_name: str
+    created_at: datetime
+    last_active_at: datetime | None
+    has_profile: bool
+    deleted: bool
+
+
+class UserPageOut(BaseModel):
+    items: list[UserAdminOut]
+    page: int
+    page_size: int
+    total: int
+
+
+class RoleChangeIn(BaseModel):
+    role: Literal["applicant", "moderator", "admin"]
+
+
+class StatusChangeIn(BaseModel):
+    status: Literal["active", "blocked"]
+
+
 class ApplicationCreate(BaseModel):
     """Создание заявки: черновик по выбранной программе (FR-008)."""
 
