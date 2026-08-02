@@ -241,6 +241,66 @@ def check_moderation(headers: dict) -> None:
     step("отклонение без причины невозможно")
 
 
+def check_aggregation_live() -> None:
+    """Прогон агрегации против базы: новая карточка, повтор, изменение, сбой."""
+    from decimal import Decimal
+
+    from sqlalchemy import func
+
+    from app.aggregation import run_source
+    from app.models import ModerationQueue, Program, Source
+    from app.parsers import RawProgram
+
+    url = f"https://example.org/programs/{uuid.uuid4().hex[:10]}"
+
+    def card(amount: str = "500000.00") -> RawProgram:
+        return RawProgram(
+            title="Грант на развитие ремёсел",
+            organizer="Минэкономразвития Республики Коми",
+            source_url=url,
+            amount=Decimal(amount),
+            applicant_types=["OOO"],
+        )
+
+    with SessionLocal() as db:
+        source_id = db.scalar(select(Source.source_id).order_by(Source.source_id))
+
+        first = run_source(db, source_id, [card()])
+        assert first.status == "success" and first.new_count == 1, "новая карточка не учтена"
+        step("прогон агрегации: новая карточка учтена (FR-006)")
+
+        program = db.scalar(select(Program).where(Program.source_url == url))
+        assert program.status == "DRAFT", "новая карточка обязана быть черновиком"
+        entry = db.scalar(
+            select(ModerationQueue).where(ModerationQueue.program_id == program.program_id)
+        )
+        assert entry.change_type == "NEW" and entry.status == "waiting"
+        step("новая карточка поставлена в очередь модерации типом NEW")
+
+        repeat = run_source(db, source_id, [card()])
+        assert repeat.new_count == 0 and repeat.updated_count == 0
+        step("повторный прогон без изменений очередь не пополняет")
+
+        changed = run_source(db, source_id, [card("750000.00")])
+        assert changed.updated_count == 1, "изменение суммы существенно"
+        step("изменение суммы распознано как существенное")
+
+        queued = db.scalar(
+            select(func.count())
+            .select_from(ModerationQueue)
+            .where(
+                ModerationQueue.program_id == program.program_id,
+                ModerationQueue.status == "waiting",
+            )
+        )
+        assert queued == 1, "записи очереди по одной программе должны схлопываться"
+        step("несколько изменений схлопнуты в одну запись очереди")
+
+        broken = run_source(db, source_id, [])
+        assert broken.status == "discarded" and broken.message
+        step("пустой результат разбора отброшен, данные в базе не изменены")
+
+
 def main() -> None:
     token = check_registration()
     headers = {"Authorization": f"Bearer {token}"}
@@ -249,6 +309,7 @@ def main() -> None:
     check_profile_and_matching(headers)
     check_application(headers)
     check_moderation(headers)
+    check_aggregation_live()
 
     print(f"\nВсе сценарии пройдены. Тестовая учётная запись: {EMAIL}")
 
