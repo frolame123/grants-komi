@@ -146,6 +146,23 @@ class CategoryAdminOut(BaseModel):
     usage_profiles: int
 
 
+class ParserRunOut(BaseModel):
+    """Запись лога прогона модуля агрегации (FR-006)."""
+
+    run_id: int
+    source_id: int
+    source_name: str
+    started_at: datetime
+    finished_at: datetime | None
+    status: str
+    status_name: str
+    new_count: int
+    updated_count: int
+    archived_count: int
+    error_count: int
+    message: str | None
+
+
 class CategoryIn(BaseModel):
     name: str = Field(min_length=2, max_length=100)
 

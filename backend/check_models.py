@@ -20,6 +20,7 @@ POST_V2_TABLES = {
     "refresh_token": "0002",
     "program_region": "0003",
     "application_history": "0004",
+    "parser_run": "0009",
 }
 POST_V2_COLUMNS = {
     "org_profile": {"category_id"},  # миграция 0003

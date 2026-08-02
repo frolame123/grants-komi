@@ -137,6 +137,27 @@ class Source(Base):
     schedule: Mapped[str] = mapped_column(String(50), default="daily")
 
 
+class ParserRun(Base):
+    """Лог прогона модуля агрегации (FR-006, миграция 0009)."""
+
+    __tablename__ = "parser_run"
+
+    run_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("source.source_id", ondelete="CASCADE"))
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+    status: Mapped[str] = mapped_column(String(20))
+    new_count: Mapped[int] = mapped_column(Integer, default=0)
+    updated_count: Mapped[int] = mapped_column(Integer, default=0)
+    archived_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    message: Mapped[str | None] = mapped_column(String(500))
+
+    source: Mapped["Source"] = relationship()
+
+
 class Category(Base):
     """Категория программы; она же отрасль профиля (справочник, FR-016).
 

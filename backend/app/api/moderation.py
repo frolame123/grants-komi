@@ -29,6 +29,7 @@ from app.models import (
     AppUser,
     Category,
     ModerationQueue,
+    ParserRun,
     Program,
     ProgramApplicantType,
     ProgramRegion,
@@ -39,6 +40,7 @@ from app.schemas import (
     ChangeOut,
     ModerationOut,
     ModerationPageOut,
+    ParserRunOut,
     ProgramIn,
     ProgramOut,
     RejectIn,
@@ -52,6 +54,12 @@ QUEUE_STATUS_NAMES = {
     "waiting": "Ожидает рассмотрения",
     "approved": "Опубликовано",
     "rejected": "Отклонено",
+}
+
+RUN_STATUS_NAMES = {
+    "success": "Выполнен",
+    "failed": "Источник недоступен",
+    "discarded": "Результат отброшен",
 }
 
 
@@ -320,6 +328,43 @@ def update_program(
     )
     db.commit()
     return to_out(load_program(db, program_id))
+
+
+@router.get("/parser-runs", response_model=list[ParserRunOut])
+def list_parser_runs(
+    db: Session = Depends(get_db),
+    admin: AppUser = Depends(require_role("admin")),
+    source_id: int | None = None,
+    limit: int = Query(50, ge=1, le=200),
+) -> list[ParserRunOut]:
+    """Лог прогонов модуля агрегации (FR-006).
+
+    По п. 4.2.6 ТЗ лог доступен администратору: по нему видно, когда источник
+    опрашивался последний раз, сколько записей изменилось и почему прогон был
+    отброшен.
+    """
+    statement = select(ParserRun).options(selectinload(ParserRun.source))
+    if source_id is not None:
+        statement = statement.where(ParserRun.source_id == source_id)
+    statement = statement.order_by(ParserRun.started_at.desc()).limit(limit)
+
+    return [
+        ParserRunOut(
+            run_id=run.run_id,
+            source_id=run.source_id,
+            source_name=run.source.name,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
+            status=run.status,
+            status_name=RUN_STATUS_NAMES.get(run.status, run.status),
+            new_count=run.new_count,
+            updated_count=run.updated_count,
+            archived_count=run.archived_count,
+            error_count=run.error_count,
+            message=run.message,
+        )
+        for run in db.scalars(statement)
+    ]
 
 
 @router.post("/programs/{program_id}/archive", response_model=ProgramOut)
