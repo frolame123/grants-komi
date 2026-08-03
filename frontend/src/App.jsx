@@ -2,9 +2,16 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { useAuth } from "./auth/AuthContext";
 import Layout from "./components/Layout";
+import Applications from "./pages/Applications";
 import Catalog from "./pages/Catalog";
+import ConfirmEmail from "./pages/ConfirmEmail";
 import Login from "./pages/Login";
+import ProgramList from "./pages/Matched";
 import NotFound from "./pages/NotFound";
+import Notifications from "./pages/Notifications";
+import PasswordReset from "./pages/PasswordReset";
+import ProgramDetail from "./pages/ProgramDetail";
+import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 
 /**
@@ -26,24 +33,43 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/programs" replace />} />
         <Route path="programs" element={<Catalog />} />
+        <Route path="programs/:programId" element={<ProgramDetail />} />
         <Route path="archive" element={<Catalog archive />} />
 
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
+        <Route path="confirm" element={<ConfirmEmail />} />
+        <Route path="reset-password" element={<PasswordReset />} />
 
-        <Route
-          path="applications"
-          element={
-            <RequireAuth>
-              <Placeholder title="Мои заявки" />
-            </RequireAuth>
-          }
-        />
         <Route
           path="matched"
           element={
             <RequireAuth>
-              <Placeholder title="Подходящие мне" />
+              <ProgramList mode="matched" />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="favorites"
+          element={
+            <RequireAuth>
+              <ProgramList mode="favorites" />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="applications"
+          element={
+            <RequireAuth>
+              <Applications />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="notifications"
+          element={
+            <RequireAuth>
+              <Notifications />
             </RequireAuth>
           }
         />
@@ -51,7 +77,7 @@ export default function App() {
           path="profile"
           element={
             <RequireAuth>
-              <Placeholder title="Профиль организации" />
+              <Profile />
             </RequireAuth>
           }
         />
@@ -59,15 +85,5 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
-  );
-}
-
-/** Экран, который будет реализован следующим шагом. */
-function Placeholder({ title }) {
-  return (
-    <div>
-      <h1 className="mb-2 text-xl font-semibold">{title}</h1>
-      <p className="text-sm text-ink-soft">Раздел в разработке.</p>
-    </div>
   );
 }

@@ -79,7 +79,7 @@ export default function Login() {
         <Link to="/register" className="hover:text-ink hover:underline">
           Зарегистрироваться
         </Link>
-        <Link to="/password-reset" className="hover:text-ink hover:underline">
+        <Link to="/reset-password" className="hover:text-ink hover:underline">
           Забыли пароль?
         </Link>
       </div>
