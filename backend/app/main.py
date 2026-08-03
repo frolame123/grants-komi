@@ -18,6 +18,7 @@ from app.api import (
     notifications,
     profile,
     programs,
+    stats,
 )
 from app.config import settings
 from app.ratelimit import api_requests, client_ip
@@ -88,6 +89,7 @@ app.include_router(dictionaries.router)
 app.include_router(moderation.router)
 app.include_router(notifications.router)
 app.include_router(account.router)
+app.include_router(stats.router)
 
 
 @app.get("/api-docs", include_in_schema=False)
