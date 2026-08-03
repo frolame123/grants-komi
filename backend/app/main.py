@@ -8,12 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.api import (
+    account,
     admin,
     applications,
     audit_log,
     auth,
     dictionaries,
     moderation,
+    notifications,
     profile,
     programs,
 )
@@ -84,6 +86,8 @@ app.include_router(admin.router)
 app.include_router(audit_log.router)
 app.include_router(dictionaries.router)
 app.include_router(moderation.router)
+app.include_router(notifications.router)
+app.include_router(account.router)
 
 
 @app.get("/api-docs", include_in_schema=False)

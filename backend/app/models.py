@@ -42,6 +42,9 @@ class AppUser(Base):
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime)  # миграция 0005
+    email_notifications: Mapped[bool] = mapped_column(  # миграция 0010
+        Boolean, server_default=text("true")
+    )
 
     profile: Mapped["OrgProfile | None"] = relationship(back_populates="user")
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="user")
