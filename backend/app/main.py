@@ -1,6 +1,7 @@
 """Точка входа REST API «Гранты Коми»."""
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,10 +19,20 @@ from app.api import (
 )
 from app.config import settings
 from app.ratelimit import api_requests, client_ip
+from app import scheduler
 
 log = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Планировщик живёт вместе с приложением (FR-006, FR-011)."""
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Гранты Коми — REST API",
     description=(
         "Информационная система агрегации и интеллектуального подбора мер "

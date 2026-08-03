@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.aggregation import run_adapter
 from app.api.deps import require_role
 from app.api.programs import to_out, with_relations
 from app.audit import write_audit
@@ -365,6 +366,39 @@ def list_parser_runs(
         )
         for run in db.scalars(statement)
     ]
+
+
+@router.post("/parser-runs/{source_id}/run", response_model=ParserRunOut)
+async def run_parser(
+    source_id: int,
+    db: Session = Depends(get_db),
+    admin: AppUser = Depends(require_role("admin")),
+) -> ParserRunOut:
+    """Внеочередной опрос источника администратором.
+
+    Обычно источники опрашиваются планировщиком по расписанию (п. 4.2.6 ТЗ).
+    Ручной запуск нужен, чтобы проверить работу адаптера после правки и чтобы
+    не ждать ночного прогона при демонстрации.
+    """
+    source = db.get(Source, source_id)
+    if source is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Источник не найден")
+
+    run = await run_adapter(db, source)
+    return ParserRunOut(
+        run_id=run.run_id,
+        source_id=run.source_id,
+        source_name=source.name,
+        started_at=run.started_at,
+        finished_at=run.finished_at,
+        status=run.status,
+        status_name=RUN_STATUS_NAMES.get(run.status, run.status),
+        new_count=run.new_count,
+        updated_count=run.updated_count,
+        archived_count=run.archived_count,
+        error_count=run.error_count,
+        message=run.message,
+    )
 
 
 @router.post("/programs/{program_id}/archive", response_model=ProgramOut)
