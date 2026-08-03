@@ -20,6 +20,7 @@ from sqlalchemy import select
 from app.aggregation import run_adapter
 from app.db import SessionLocal
 from app.models import Source
+from app.notifications import build_daily_notifications
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +56,13 @@ def trigger_for(index: int, schedule: str) -> CronTrigger:
     return CronTrigger(hour=hour, minute=0)
 
 
+async def send_deadline_notifications() -> None:
+    """Задание планировщика: ежедневное формирование уведомлений (FR-011)."""
+    with SessionLocal() as db:
+        counters = build_daily_notifications(db)
+    log.info("Уведомления за сутки: %s", counters)
+
+
 def setup_jobs() -> None:
     """Регистрация заданий по источникам из базы."""
     with SessionLocal() as db:
@@ -71,6 +79,17 @@ def setup_jobs() -> None:
             coalesce=True,  # пропущенные запуски объединяются в один
         )
         log.info("Запланирован опрос источника «%s» (%s)", source.name, source.schedule)
+
+    # Уведомления о сроках — ежедневно в 09:00 (п. 4.2.11 ТЗ)
+    scheduler.add_job(
+        send_deadline_notifications,
+        trigger=CronTrigger(hour=9, minute=0),
+        id="deadline_notifications",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    log.info("Запланировано формирование уведомлений о сроках, ежедневно в 09:00")
 
 
 def start() -> None:

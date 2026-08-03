@@ -301,6 +301,102 @@ def check_aggregation_live() -> None:
         step("пустой результат разбора отброшен, данные в базе не изменены")
 
 
+def check_notifications_live(headers: dict) -> None:
+    """Формирование уведомлений, счётчик непрочитанных и отказ от рассылки."""
+    from app.notifications import build_daily_notifications
+
+    from datetime import date, timedelta
+
+    from app.models import Program
+
+    program_id = client.get("/api/programs").json()["items"][0]["program_id"]
+    client.post(f"/api/favorites/{program_id}", headers=headers)
+
+    # Срок подачи временно переносится в окно уведомления: у тестовых программ
+    # дедлайны далеко, и без этого проверка ничего бы не доказала
+    with SessionLocal() as db:
+        program = db.get(Program, program_id)
+        original_deadline = program.deadline
+        program.deadline = date.today() + timedelta(days=3)
+        db.commit()
+
+    try:
+        with SessionLocal() as db:
+            first = build_daily_notifications(db)
+            second = build_daily_notifications(db)
+    finally:
+        with SessionLocal() as db:
+            db.get(Program, program_id).deadline = original_deadline
+            db.commit()
+
+    assert first["DL7"] >= 1, "уведомление за неделю до срока не сформировано"
+    assert sum(second.values()) == 0, "повторный прогон не должен дублировать уведомления"
+    step(f"уведомления сформированы {first}, повторный прогон не создал ни одного (FR-011)")
+
+    page = client.get("/api/notifications", headers=headers).json()
+    assert page["unread"] == page["total"] >= 1
+    assert page["items"][0]["type"] == "DL7"
+    step(f"счётчик непрочитанных: {page['unread']}, тип уведомления DL7")
+
+    notification_id = page["items"][0]["notification_id"]
+    read = client.post(f"/api/notifications/{notification_id}/read", headers=headers)
+    assert read.status_code == 200, read.text
+    after = client.get("/api/notifications", headers=headers).json()
+    assert after["unread"] == page["unread"] - 1
+    step("отметка прочтения уменьшает счётчик непрочитанных")
+
+    settings = client.put(
+        "/api/notifications/settings", headers=headers, json={"email_notifications": False}
+    ).json()
+    assert settings["email_notifications"] is False
+    step("отказ от рассылки по электронной почте сохранён (38-ФЗ)")
+
+
+def check_account_deletion(headers: dict) -> None:
+    """Удаление учётной записи: подтверждение паролем и обезличивание."""
+    from sqlalchemy import func
+
+    from app.models import Favorite, Notification, OrgProfile
+
+    with SessionLocal() as db:
+        user = db.scalar(select(AppUser).where(AppUser.email == EMAIL))
+        user_id = user.user_id
+
+    wrong = client.post("/api/account/delete", headers=headers, json={"password": "Parol124"})
+    assert wrong.status_code == 403, "удаление без верного пароля"
+    step("удаление учётной записи без верного пароля отклонено (FR-013)")
+
+    deleted = client.post("/api/account/delete", headers=headers, json={"password": PASSWORD})
+    assert deleted.status_code == 200, deleted.text
+    step("учётная запись удалена по запросу пользователя")
+
+    with SessionLocal() as db:
+        user = db.get(AppUser, user_id)
+        assert user.deleted_at is not None and user.status == "blocked"
+        assert user.email != EMAIL, "адрес должен быть обезличен"
+        for model in (OrgProfile, Favorite, Notification):
+            left = db.scalar(
+                select(func.count()).select_from(model).where(model.user_id == user_id)
+            )
+            assert left == 0, f"остались записи {model.__name__}"
+    step("профиль, избранное и уведомления стёрты, учётная запись обезличена")
+
+    assert client.get("/api/auth/me", headers=headers).status_code == 401
+    step("токен удалённой учётной записи больше не действует")
+
+    again = client.post(
+        "/api/auth/register",
+        json={
+            "email": EMAIL,
+            "password": PASSWORD,
+            "password_confirm": PASSWORD,
+            "pd_consent": True,
+        },
+    )
+    assert again.status_code == 201, "адрес обязан освободиться для повторной регистрации"
+    step("адрес освобождён: повторная регистрация возможна (FR-001)")
+
+
 def main() -> None:
     token = check_registration()
     headers = {"Authorization": f"Bearer {token}"}
@@ -310,6 +406,8 @@ def main() -> None:
     check_application(headers)
     check_moderation(headers)
     check_aggregation_live()
+    check_notifications_live(headers)
+    check_account_deletion(headers)
 
     print(f"\nВсе сценарии пройдены. Тестовая учётная запись: {EMAIL}")
 

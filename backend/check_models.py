@@ -25,7 +25,7 @@ POST_V2_TABLES = {
 POST_V2_COLUMNS = {
     "org_profile": {"category_id"},  # миграция 0003
     "application": {"comment"},  # миграция 0004
-    "app_user": {"last_active_at"},  # миграция 0005
+    "app_user": {"last_active_at", "email_notifications"},  # миграции 0005 и 0010
     "category": {"status", "proposed_by", "merged_into_id", "created_at"},  # миграция 0007
     "audit_log": {"details"},  # миграция 0008
     "moderation_queue": {  # миграция 0008

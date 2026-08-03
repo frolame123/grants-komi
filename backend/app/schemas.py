@@ -235,6 +235,41 @@ class AuditPageOut(BaseModel):
     total: int
 
 
+class NotificationOut(BaseModel):
+    """Уведомление о сроке подачи или новой подходящей программе (FR-011)."""
+
+    notification_id: int
+    program_id: int
+    program_title: str
+    deadline: date | None
+    type: str
+    type_name: str
+    sent_at: datetime
+    is_read: bool
+
+
+class NotificationPageOut(BaseModel):
+    items: list[NotificationOut]
+    page: int
+    page_size: int
+    total: int
+    unread: int = Field(description="Счётчик непрочитанных для значка в интерфейсе")
+
+
+class AccountDeleteIn(BaseModel):
+    """Удаление учётной записи требует подтверждения паролем (FR-013)."""
+
+    password: str
+
+
+class NotificationSettingsIn(BaseModel):
+    email_notifications: bool
+
+
+class NotificationSettingsOut(BaseModel):
+    email_notifications: bool
+
+
 class RoleChangeIn(BaseModel):
     role: Literal["applicant", "moderator", "admin"]
 
