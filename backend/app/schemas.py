@@ -256,6 +256,48 @@ class NotificationPageOut(BaseModel):
     unread: int = Field(description="Счётчик непрочитанных для значка в интерфейсе")
 
 
+class StatsCountersOut(BaseModel):
+    """Счётчики панели администратора."""
+
+    users_total: int
+    users_active: int
+    users_new_month: int
+    programs_published: int
+    programs_total: int
+    applications_total: int
+    applications_active: int
+    moderation_waiting: int
+    notifications_unread: int
+
+
+class SeriesPointOut(BaseModel):
+    """Точка графика: подпись и значение."""
+
+    label: str
+    value: int
+
+
+class SourceStatusOut(BaseModel):
+    """Состояние источника по последнему прогону (FR-006)."""
+
+    source_id: int
+    source_name: str
+    schedule: str
+    last_run_at: datetime | None
+    last_status: str | None
+    last_message: str | None
+    new_count: int
+
+
+class DashboardOut(BaseModel):
+    counters: StatsCountersOut
+    registrations: list[SeriesPointOut]
+    applications_by_status: list[SeriesPointOut]
+    programs_by_status: list[SeriesPointOut]
+    users_by_role: list[SeriesPointOut]
+    sources: list[SourceStatusOut]
+
+
 class AccountDeleteIn(BaseModel):
     """Удаление учётной записи требует подтверждения паролем (FR-013)."""
 

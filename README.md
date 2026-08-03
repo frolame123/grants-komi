@@ -59,11 +59,15 @@ python check_workflow.py      # статусная модель заявки
 python check_admin.py         # правила администрирования
 python check_dictionaries.py  # регламент справочников
 python check_moderation.py    # сравнение «было / стало», правила модерации
+python check_aggregation.py   # нормализация данных источников, правила прогона
+python check_adapters.py      # разбор разметки источника на сохранённом образце
+python check_notifications.py # пороги уведомлений о сроках
+python check_stats.py         # согласованность счётчиков панели администратора
 python check_api.py           # сквозной сценарий против работающей СУБД
 python db/explain_report.py   # планы выполнения запросов и работа индексов
 ```
 
-Первые семь проверок работают без базы данных. `check_api.py` и
+Проверки правил работают без базы данных. `check_stats.py`, `check_api.py` и
 `explain_report.py` требуют поднятой СУБД с применёнными миграциями.
 
 ## Схема БД
