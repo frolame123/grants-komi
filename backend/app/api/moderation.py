@@ -260,6 +260,21 @@ def reject(
     return entry_out(db, entry)
 
 
+@router.get("/programs/{program_id}", response_model=ProgramOut)
+def get_program_for_staff(
+    program_id: int,
+    db: Session = Depends(get_db),
+    user: AppUser = Depends(require_role("moderator", "admin")),
+) -> ProgramOut:
+    """Карточка любого состояния для панели управления.
+
+    Публичный маршрут отдаёт только опубликованные и архивные программы, и это
+    правильно. Но контент-менеджеру нужно открыть именно черновик — то, что
+    принёс парсер и что предстоит дозаполнить.
+    """
+    return to_out(load_program(db, program_id))
+
+
 @router.post("/programs", response_model=ProgramOut, status_code=status.HTTP_201_CREATED)
 def create_program(
     data: ProgramIn,

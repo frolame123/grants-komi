@@ -183,6 +183,7 @@ class ProgramOut(BaseModel):
     status: str
     category_id: int | None
     category: str | None
+    source_id: int
     source: str
     source_url: str
     applicant_types: list[str]
