@@ -33,6 +33,7 @@ def to_out(program: Program, match: int | None = None) -> ProgramOut:
         status=program.status,
         category_id=program.category_id,
         category=program.category.name if program.category else None,
+        source_id=program.source_id,
         source=program.source.name,
         source_url=program.source_url,
         applicant_types=sorted(t.applicant_type for t in program.applicant_types),

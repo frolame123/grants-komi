@@ -1,5 +1,13 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
+import AdminLayout from "./admin/AdminLayout";
+import Audit from "./admin/Audit";
+import Dashboard from "./admin/Dashboard";
+import Dictionaries from "./admin/Dictionaries";
+import Moderation from "./admin/Moderation";
+import ParserRuns from "./admin/ParserRuns";
+import ProgramForm from "./admin/ProgramForm";
+import Users from "./admin/Users";
 import { useAuth } from "./auth/AuthContext";
 import Layout from "./components/Layout";
 import Applications from "./pages/Applications";
@@ -81,6 +89,17 @@ export default function App() {
             </RequireAuth>
           }
         />
+
+        <Route path="admin" element={<AdminLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="moderation" element={<Moderation />} />
+          <Route path="programs/new" element={<ProgramForm />} />
+          <Route path="programs/:programId" element={<ProgramForm />} />
+          <Route path="dictionaries" element={<Dictionaries />} />
+          <Route path="users" element={<Users />} />
+          <Route path="sources" element={<ParserRuns />} />
+          <Route path="audit" element={<Audit />} />
+        </Route>
 
         <Route path="*" element={<NotFound />} />
       </Route>
