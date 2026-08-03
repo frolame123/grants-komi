@@ -12,9 +12,11 @@
 """
 
 import logging
+from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 from sqlalchemy import select
 
 from app.aggregation import run_adapter
@@ -92,11 +94,45 @@ def setup_jobs() -> None:
     log.info("Запланировано формирование уведомлений о сроках, ежедневно в 09:00")
 
 
+SETUP_RETRY_MINUTES = 5
+
+
+def try_setup_jobs() -> None:
+    """Регистрация заданий, устойчивая к недоступности базы.
+
+    Список источников читается из базы, и при старте её может не быть:
+    контейнер приложения поднимается быстрее СУБД, сервер перезагружается,
+    база перезапускается для обслуживания. Раньше это роняло всё приложение —
+    API не отвечал вовсе, хотя большинство его маршрутов работоспособны сразу
+    после восстановления соединения.
+
+    Теперь сбой регистрации откладывает её на несколько минут, а приложение
+    продолжает обслуживать запросы. Требование доступности из п. 4.1.3 ТЗ
+    не должно нарушаться из-за фоновой подсистемы.
+    """
+    try:
+        setup_jobs()
+    except Exception as exc:  # noqa: BLE001 — причина уходит в журнал целиком
+        log.error(
+            "Не удалось зарегистрировать задания (%s), повтор через %s минут",
+            exc,
+            SETUP_RETRY_MINUTES,
+        )
+        scheduler.add_job(
+            try_setup_jobs,
+            trigger=DateTrigger(
+                run_date=datetime.now() + timedelta(minutes=SETUP_RETRY_MINUTES)
+            ),
+            id="setup_jobs_retry",
+            replace_existing=True,
+        )
+
+
 def start() -> None:
     if scheduler.running:
         return
-    setup_jobs()
     scheduler.start()
+    try_setup_jobs()
 
 
 def shutdown() -> None:
