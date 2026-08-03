@@ -5,8 +5,10 @@
  * это удобство, а не защита — доступ ограничивает сервер.
  */
 
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
+import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
 const TITLES = {
@@ -83,6 +85,21 @@ function MenuLink({ to, children }) {
 
 export default function Layout() {
   const { user, isStaff, logout } = useAuth();
+  const { pathname } = useLocation();
+  const [unread, setUnread] = useState(0);
+
+  // Счётчик непрочитанных обновляется при смене раздела: отдельный опрос по
+  // таймеру ради значка не нужен, а после прочтения число должно измениться
+  useEffect(() => {
+    if (!user) {
+      setUnread(0);
+      return;
+    }
+    api
+      .get("/api/notifications?page=1")
+      .then((data) => setUnread(data.unread))
+      .catch(() => setUnread(0));
+  }, [user, pathname]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -102,7 +119,21 @@ export default function Layout() {
           <nav className="flex flex-wrap items-center gap-1" aria-label="Основное меню">
             <MenuLink to="/programs">Каталог</MenuLink>
             {user && <MenuLink to="/matched">Подходящие мне</MenuLink>}
+            {user && <MenuLink to="/favorites">Избранное</MenuLink>}
             {user && <MenuLink to="/applications">Мои заявки</MenuLink>}
+            {user && (
+              <MenuLink to="/notifications">
+                Уведомления
+                {unread > 0 && (
+                  <span
+                    className="ml-1 rounded-full bg-alert px-1.5 py-0.5 text-[10px] font-medium text-white"
+                    aria-label={`непрочитанных: ${unread}`}
+                  >
+                    {unread}
+                  </span>
+                )}
+              </MenuLink>
+            )}
             {isStaff && <MenuLink to="/admin">Управление</MenuLink>}
           </nav>
 
