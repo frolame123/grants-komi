@@ -26,8 +26,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.moderation import is_significant, snapshot
-from app.models import ModerationQueue, ParserRun, Program, ProgramApplicantType, ProgramRegion
+from app.models import (
+    ModerationQueue,
+    ParserRun,
+    Program,
+    ProgramApplicantType,
+    ProgramRegion,
+    Source,
+)
 from app.parsers import RawProgram
+from app.parsers.registry import adapter_for
 
 log = logging.getLogger(__name__)
 
@@ -187,6 +195,33 @@ def process_card(db: Session, source_id: int, raw: RawProgram, result: RunResult
         # Косметическое изменение применяется автоматически, с записью в лог
         log.info("Косметическое изменение карточки %s", program.program_id)
         result.cosmetic_count += 1
+
+
+async def run_adapter(db: Session, source: Source) -> ParserRun:
+    """Опрос источника адаптером и применение результата.
+
+    Сбой адаптера — сетевой, разбора или полная недоступность источника — не
+    прерывает работу остальных: исключение изолируется здесь и превращается в
+    запись лога со статусом «источник недоступен». По п. 4.1.3 ТЗ деградация
+    одного источника отказом системы не является.
+    """
+    started = datetime.now()
+    try:
+        cards = await adapter_for(source.name).fetch()
+    except Exception as exc:  # noqa: BLE001 — причина уходит в лог целиком
+        log.error("Источник «%s» недоступен: %s", source.name, exc)
+        run = ParserRun(
+            source_id=source.source_id,
+            started_at=started,
+            finished_at=datetime.now(),
+            status="failed",
+            message=str(exc)[:500],
+        )
+        db.add(run)
+        db.commit()
+        return run
+
+    return run_source(db, source.source_id, cards)
 
 
 def run_source(db: Session, source_id: int, cards: list[RawProgram]) -> ParserRun:
