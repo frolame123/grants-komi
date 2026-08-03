@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* Единый строгий монохромный стиль по п. 4.1.5 ТЗ: оттенки серого,
+   единственный акцент — тёмный графитовый. Цветом обозначаются только
+   состояния, которые нельзя перепутать: ошибка, успех, приближение срока. */
+@theme {
+  --color-ink: #1b1b1f;
+  --color-ink-soft: #45464f;
+  --color-line: #d7d8dd;
+  --color-surface: #f6f6f8;
+  --color-alert: #a3241f;
+  --color-success: #1f6b3a;
+  --color-warning: #8a5a00;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-ink antialiased;
+    font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+  }
+
+  /* Видимый фокус обязателен: без него клавиатурная навигация вслепую */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ink;
+  }
+}
+
+@layer components {
+  .field {
+    @apply w-full rounded border border-line px-3 py-2 text-sm
+           transition-colors focus:border-ink focus:outline-none;
+  }
+
+  .field-error {
+    @apply border-alert bg-alert/5;
+  }
+
+  /* В Tailwind 4 @apply принимает только утилиты, поэтому общие свойства
+     кнопок перечислены в каждом классе, а не наследуются от базового */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded px-4 py-2
+           text-sm font-medium transition-colors disabled:cursor-not-allowed
+           disabled:opacity-50 bg-ink text-white hover:bg-ink-soft;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded px-4 py-2
+           text-sm font-medium transition-colors disabled:cursor-not-allowed
+           disabled:opacity-50 border border-line bg-white text-ink hover:bg-surface;
+  }
+}
