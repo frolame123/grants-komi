@@ -6,7 +6,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -132,6 +132,45 @@ class CategoryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CategoryAdminOut(BaseModel):
+    """Значение справочника в панели управления (FR-016)."""
+
+    category_id: int
+    name: str
+    status: str
+    status_name: str
+    proposed_by: int | None
+    merged_into_id: int | None
+    created_at: datetime
+    usage_programs: int
+    usage_profiles: int
+
+
+class ParserRunOut(BaseModel):
+    """Запись лога прогона модуля агрегации (FR-006)."""
+
+    run_id: int
+    source_id: int
+    source_name: str
+    started_at: datetime
+    finished_at: datetime | None
+    status: str
+    status_name: str
+    new_count: int
+    updated_count: int
+    archived_count: int
+    error_count: int
+    message: str | None
+
+
+class CategoryIn(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+
+
+class CategoryMergeIn(BaseModel):
+    target_id: int = Field(description="Значение, с которым объединяется дубль")
+
+
 class ProgramOut(BaseModel):
     """Карточка программы. Число дней до срока вычисляется, а не хранится (FR-014)."""
 
@@ -144,6 +183,7 @@ class ProgramOut(BaseModel):
     status: str
     category_id: int | None
     category: str | None
+    source_id: int
     source: str
     source_url: str
     applicant_types: list[str]
@@ -185,6 +225,7 @@ class AuditOut(BaseModel):
     entity: str
     entity_id: int | None
     ip_address: str | None
+    details: str | None
     created_at: datetime
 
 
@@ -193,6 +234,83 @@ class AuditPageOut(BaseModel):
     page: int
     page_size: int
     total: int
+
+
+class NotificationOut(BaseModel):
+    """Уведомление о сроке подачи или новой подходящей программе (FR-011)."""
+
+    notification_id: int
+    program_id: int
+    program_title: str
+    deadline: date | None
+    type: str
+    type_name: str
+    sent_at: datetime
+    is_read: bool
+
+
+class NotificationPageOut(BaseModel):
+    items: list[NotificationOut]
+    page: int
+    page_size: int
+    total: int
+    unread: int = Field(description="Счётчик непрочитанных для значка в интерфейсе")
+
+
+class StatsCountersOut(BaseModel):
+    """Счётчики панели администратора."""
+
+    users_total: int
+    users_active: int
+    users_new_month: int
+    programs_published: int
+    programs_total: int
+    applications_total: int
+    applications_active: int
+    moderation_waiting: int
+    notifications_unread: int
+
+
+class SeriesPointOut(BaseModel):
+    """Точка графика: подпись и значение."""
+
+    label: str
+    value: int
+
+
+class SourceStatusOut(BaseModel):
+    """Состояние источника по последнему прогону (FR-006)."""
+
+    source_id: int
+    source_name: str
+    schedule: str
+    last_run_at: datetime | None
+    last_status: str | None
+    last_message: str | None
+    new_count: int
+
+
+class DashboardOut(BaseModel):
+    counters: StatsCountersOut
+    registrations: list[SeriesPointOut]
+    applications_by_status: list[SeriesPointOut]
+    programs_by_status: list[SeriesPointOut]
+    users_by_role: list[SeriesPointOut]
+    sources: list[SourceStatusOut]
+
+
+class AccountDeleteIn(BaseModel):
+    """Удаление учётной записи требует подтверждения паролем (FR-013)."""
+
+    password: str
+
+
+class NotificationSettingsIn(BaseModel):
+    email_notifications: bool
+
+
+class NotificationSettingsOut(BaseModel):
+    email_notifications: bool
 
 
 class RoleChangeIn(BaseModel):
@@ -238,6 +356,59 @@ class ApplicationOut(BaseModel):
     comment: str | None
     program_archived: bool = Field(description="Признак «программа завершена» (п. 4.2.8 ТЗ)")
     history: list[HistoryOut]
+
+
+class ProgramIn(BaseModel):
+    """Создание и правка карточки программы контент-менеджером (FR-007)."""
+
+    source_id: int
+    category_id: int | None = None
+    title: str = Field(min_length=5, max_length=300)
+    organizer: str = Field(min_length=2, max_length=200)
+    amount: Decimal | None = Field(None, gt=0)
+    deadline: date | None = None
+    source_url: str = Field(min_length=5, max_length=500)
+    applicant_types: list[Literal["IP", "OOO", "NKO", "SMZ"]] = Field(default_factory=list)
+    regions: list[str] = Field(default_factory=list)
+    extra_json: dict = Field(default_factory=dict)
+
+
+class ChangeOut(BaseModel):
+    """Одно расхождение в представлении «было / стало»."""
+
+    field: str
+    field_name: str
+    before: Any = None
+    after: Any = None
+    significant: bool
+
+
+class ModerationOut(BaseModel):
+    """Запись очереди модерации (FR-007)."""
+
+    queue_id: int
+    program_id: int
+    program_title: str
+    program_status: str
+    change_type: str
+    status: str
+    status_name: str
+    reason: str | None
+    created_at: datetime
+    resolved_at: datetime | None
+    resolved_by: int | None
+    changes: list[ChangeOut]
+
+
+class ModerationPageOut(BaseModel):
+    items: list[ModerationOut]
+    page: int
+    page_size: int
+    total: int
+
+
+class RejectIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=300)
 
 
 class PageOut(BaseModel):

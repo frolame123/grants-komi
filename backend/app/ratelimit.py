@@ -43,8 +43,13 @@ class SlidingWindow:
         return len(events) <= self.limit
 
     def exceeded(self, key: str) -> bool:
-        """Лимит исчерпан без учёта нового события."""
-        return len(self._trim(key, time.monotonic())) > self.limit
+        """Лимит исчерпан: следующее событие выполнять уже нельзя.
+
+        Сравнение нестрогое. При limit = 5 после пяти неудачных попыток
+        счётчик равен пяти, и шестая попытка должна быть отклонена — п. 4.1.4
+        ТЗ разрешает «не более 5 неудачных попыток», а не шесть.
+        """
+        return len(self._trim(key, time.monotonic())) >= self.limit
 
     def reset(self, key: str) -> None:
         self._events.pop(key, None)

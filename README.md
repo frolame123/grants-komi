@@ -23,6 +23,16 @@ docker compose exec -T db psql -U grants -d grants < backend/db/seed.sql
 
 ## Локальная разработка backend
 
+Нужен установленный PostgreSQL 16. Создайте роль и базу:
+
+```sql
+CREATE USER grants WITH PASSWORD 'пароль';
+CREATE DATABASE grants OWNER grants;
+```
+
+Скопируйте `.env.example` в `backend/.env`, укажите в нём строку подключения
+и секретный ключ, затем:
+
 ```bash
 cd backend
 python -m venv .venv && .venv\Scripts\activate
@@ -30,6 +40,35 @@ pip install -r requirements.txt
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
+
+Тестовые данные (скрипт повторяемый, перед наполнением очищает таблицы):
+
+```bash
+psql -U grants -d grants -f db/schema.sql   # не нужно: схему создаёт alembic
+psql -U grants -d grants -f db/seed.sql
+```
+
+## Проверки
+
+```bash
+cd backend
+python check_models.py        # модели не разошлись со схемой
+python check_auth.py          # пароли, токены, ограничение частоты запросов
+python check_business.py      # контрольное число ИНН, подбор программ
+python check_workflow.py      # статусная модель заявки
+python check_admin.py         # правила администрирования
+python check_dictionaries.py  # регламент справочников
+python check_moderation.py    # сравнение «было / стало», правила модерации
+python check_aggregation.py   # нормализация данных источников, правила прогона
+python check_adapters.py      # разбор разметки источника на сохранённом образце
+python check_notifications.py # пороги уведомлений о сроках
+python check_stats.py         # согласованность счётчиков панели администратора
+python check_api.py           # сквозной сценарий против работающей СУБД
+python db/explain_report.py   # планы выполнения запросов и работа индексов
+```
+
+Проверки правил работают без базы данных. `check_stats.py`, `check_api.py` и
+`explain_report.py` требуют поднятой СУБД с применёнными миграциями.
 
 ## Схема БД
 

@@ -1,5 +1,21 @@
 -- Тестовые данные (разделы 4.x исходного скрипта grants_db_v2.sql)
 
+-- ---------------------------------------------------------------------
+-- 0. Очистка перед наполнением
+--
+-- Записи ссылаются друг на друга по номерам (профиль на пользователя 1,
+-- программа на источник 2 и так далее), поэтому счётчики идентификаторов
+-- обязаны начинаться с единицы. Обычное DELETE их не сбрасывает, а откат
+-- неудачной транзакции — тем более: последовательности в PostgreSQL живут
+-- вне транзакций. TRUNCATE ... RESTART IDENTITY делает скрипт повторяемым.
+-- ---------------------------------------------------------------------
+TRUNCATE TABLE
+    audit_log, notification, moderation_queue, application_history, application,
+    favorite, program_region, program_applicant_type, program, category, source,
+    org_profile, password_reset_token, email_confirmation_token, refresh_token,
+    app_user
+RESTART IDENTITY CASCADE;
+
 -- 4. НАПОЛНЕНИЕ ТЕСТОВЫМИ ДАННЫМИ
 -- =====================================================================
 
@@ -11,15 +27,19 @@ INSERT INTO app_user (email, password_hash, role, status, pd_consent_at) VALUES
     ('moderator@grantykomi.ru', '$2b$12$Zs9cVbN6xEwD4gK8lPq2Rt', 'moderator', 'active', '2026-05-20 09:00:00+03'),
     ('admin@grantykomi.ru',     '$2b$12$Yt2dCxZ8wQaE5jL1mNr4Su', 'admin',     'active', '2026-05-20 09:00:00+03');
 
--- 4.2. Профили организаций: разные типы (ООО — 10 цифр, прочие — 12)
+-- 4.2. Профили организаций: разные типы (ООО — 10 цифр, прочие — 12).
+--      Контрольные числа ИНН пересчитаны по алгоритму ФНС: база проверяет
+--      только длину, а приложение — контрольное число (FR-003)
+--      Отрасль профиля назначается ниже, в разделе 4.4.1: справочник
+--      категорий наполняется позже профилей
 INSERT INTO org_profile (user_id, org_type, inn, city, street, house, org_size, goal) VALUES
-    (1, 'OOO', '1101234567', 'Сыктывкар', 'ул. Коммунистическая', '25',  'small',
+    (1, 'OOO', '1101234568', 'Сыктывкар', 'ул. Коммунистическая', '25',  'small',
      'Закупка оборудования для мастерской'),
-    (2, 'NKO', '110987654321', 'Ухта',      'ул. Мира',             '14а', 'micro',
+    (2, 'NKO', '110987654350', 'Ухта',      'ул. Мира',             '14а', 'micro',
      'Проведение фестиваля финно-угорской культуры'),
-    (3, 'IP',  '110555666777', 'Воркута',   'ул. Ленина',           '7',   'micro',
+    (3, 'IP',  '110555666750', 'Воркута',   'ул. Ленина',           '7',   'micro',
      'Развитие пункта приёма дикоросов'),
-    (4, 'SMZ', '110111222333', 'Печора',    'ул. Советская',        '3',   NULL,
+    (4, 'SMZ', '110111222311', 'Печора',    'ул. Советская',        '3',   NULL,
      'Продвижение ремесленной продукции');
 
 -- 4.3. Источники сведений
@@ -36,6 +56,15 @@ INSERT INTO category (name) VALUES
     ('Культура и творчество'),
     ('Экология и природопользование'),
     ('Молодёжные инициативы');
+
+-- 4.4.1. Отрасль профилей организаций (колонка добавлена миграцией 0003)
+--        Без заполненной отрасли персональный подбор недоступен: FR-005
+--        требует её как обязательное условие и начисляет 40 баллов за
+--        совпадение с категорией программы
+UPDATE org_profile SET category_id = 1 WHERE user_id = 1;  -- социальное предпринимательство
+UPDATE org_profile SET category_id = 3 WHERE user_id = 2;  -- культура и творчество
+UPDATE org_profile SET category_id = 4 WHERE user_id = 3;  -- экология
+UPDATE org_profile SET category_id = 5 WHERE user_id = 4;  -- молодёжные инициативы
 
 -- 4.5. Программы: разные источники, категории и статусы
 INSERT INTO program
@@ -80,6 +109,15 @@ INSERT INTO program_applicant_type (program_id, applicant_type) VALUES
     (4, 'IP'),  (4, 'OOO'), (4, 'NKO'),
     (5, 'IP'),  (5, 'SMZ');
 
+-- 4.6.1. Регионы действия программ (многозначный атрибут, миграция 0003)
+--        Используется при подборе: совпадение региона даёт 30 баллов (FR-005)
+INSERT INTO program_region (program_id, region) VALUES
+    (1, 'Республика Коми'),
+    (2, 'Республика Коми'),
+    (3, 'Республика Коми'), (3, 'Российская Федерация'),
+    (4, 'Республика Коми'),
+    (5, 'Республика Коми');
+
 -- 4.7. Избранное
 INSERT INTO favorite (user_id, program_id) VALUES
     (1, 1),
@@ -96,11 +134,21 @@ INSERT INTO application (user_id, program_id, status, status_date, result) VALUE
     (2, 1, 'RES',  DATE '2026-06-15', 'REJECTED');
 
 -- 4.9. Очередь модерации: новые и изменённые записи
-INSERT INTO moderation_queue (program_id, change_type, status) VALUES
-    (4, 'NEW', 'waiting'),
-    (2, 'UPD', 'waiting'),
-    (1, 'UPD', 'approved'),
-    (5, 'UPD', 'rejected');
+--      Причина отклонения обязательна при статусе rejected, снимок прежнего
+--      состояния даёт представление «было / стало» (миграция 0008)
+INSERT INTO moderation_queue (program_id, change_type, status, reason, prev_snapshot)
+VALUES
+    (4, 'NEW', 'waiting', NULL, NULL),
+    (2, 'UPD', 'waiting', NULL,
+     '{"title": "Субсидия на модернизацию оборудования",
+       "organizer": "Фонд «Агентство регионального развития»",
+       "amount": "800000.00", "deadline": "2026-10-01",
+       "applicant_types": ["OOO"], "category_id": 2,
+       "source_url": "https://arrkomi.ru/support/modernization-2026"}'::jsonb),
+    (1, 'UPD', 'approved', NULL, NULL),
+    (5, 'UPD', 'rejected',
+     'Срок подачи не определён в первоисточнике, требуется уточнение у организатора',
+     NULL);
 
 -- 4.10. Уведомления: разные типы, прочитанные и нет
 INSERT INTO notification (user_id, program_id, type, is_read) VALUES

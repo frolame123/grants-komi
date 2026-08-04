@@ -164,7 +164,10 @@ def confirm_email(token: str, request: Request, db: Session = Depends(get_db)) -
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ссылка недействительна или устарела")
 
     user = db.get(AppUser, record.user_id)
-    if record.used or (user is not None and user.status == "active"):
+    if user is None:
+        # Учётная запись удалена, а токен остался: ссылка бесполезна
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ссылка недействительна или устарела")
+    if record.used or user.status == "active":
         # Повторный переход: адрес не изменяется, токены не выдаются
         return ConfirmOut(detail="Адрес уже подтверждён")
     if record.expires_at < datetime.now():

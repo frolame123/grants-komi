@@ -1,18 +1,41 @@
 """Точка входа REST API «Гранты Коми»."""
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.api import admin, applications, audit_log, auth, profile, programs
+from app.api import (
+    account,
+    admin,
+    applications,
+    audit_log,
+    auth,
+    dictionaries,
+    moderation,
+    notifications,
+    profile,
+    programs,
+    stats,
+)
 from app.config import settings
 from app.ratelimit import api_requests, client_ip
+from app import scheduler
 
 log = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Планировщик живёт вместе с приложением (FR-006, FR-011)."""
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Гранты Коми — REST API",
     description=(
         "Информационная система агрегации и интеллектуального подбора мер "
@@ -62,6 +85,11 @@ app.include_router(programs.router)
 app.include_router(applications.router)
 app.include_router(admin.router)
 app.include_router(audit_log.router)
+app.include_router(dictionaries.router)
+app.include_router(moderation.router)
+app.include_router(notifications.router)
+app.include_router(account.router)
+app.include_router(stats.router)
 
 
 @app.get("/api-docs", include_in_schema=False)

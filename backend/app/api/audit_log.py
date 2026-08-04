@@ -29,8 +29,14 @@ ACTION_NAMES = {
     "user_block": "Блокировка учётной записи",
     "user_unblock": "Разблокировка учётной записи",
     "account_delete": "Удаление учётной записи",
+    "program_create": "Создание карточки программы",
+    "program_update": "Правка карточки программы",
     "program_publish": "Публикация программы",
+    "program_reject": "Отклонение записи очереди модерации",
     "program_archive": "Архивация программы",
+    "dict_propose": "Предложение значения справочника",
+    "dict_approve": "Утверждение значения справочника",
+    "dict_merge": "Объединение значений справочника",
     "rate_limit_block": "Блокировка по превышению частоты запросов",
 }
 
@@ -84,6 +90,7 @@ def list_audit(
                 entity=record.entity,
                 entity_id=record.entity_id,
                 ip_address=record.ip_address,
+                details=record.details,
                 created_at=record.created_at,
             )
             for record in records

@@ -1,0 +1,54 @@
+# Обратный прокси и автоматический сертификат.
+#
+# Caddy сам получает сертификат Let's Encrypt при первом запросе к домену и
+# продлевает его без cron и без certbot. Условие одно: порты 80 и 443 должны
+# быть открыты до переключения записи DNS, иначе проверка владения доменом не
+# пройдёт.
+#
+# Домен задаётся переменной DOMAIN в файле .env.
+
+{$DOMAIN} {
+	encode gzip zstd
+
+	# Обращения к API уходят на сервер приложения. Клиент знает только
+	# относительный путь /api и не зависит от адреса сервера
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# Документация OpenAPI: п. 5.4 требований, путь /api-docs
+	handle /api-docs {
+		reverse_proxy backend:8000
+	}
+	handle /docs* {
+		reverse_proxy backend:8000
+	}
+	handle /openapi.json {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		# Одностраничное приложение: любой адрес отдаёт index.html, дальше
+		# маршрут разбирает клиент. Без этого прямой переход по ссылке вида
+		# /admin/moderation возвращал бы 404 от веб-сервера
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		# Заголовки безопасности (пункт 5.1 требований)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+}

@@ -20,11 +20,20 @@ POST_V2_TABLES = {
     "refresh_token": "0002",
     "program_region": "0003",
     "application_history": "0004",
+    "parser_run": "0009",
 }
 POST_V2_COLUMNS = {
     "org_profile": {"category_id"},  # миграция 0003
     "application": {"comment"},  # миграция 0004
-    "app_user": {"last_active_at"},  # миграция 0005
+    "app_user": {"last_active_at", "email_notifications"},  # миграции 0005 и 0010
+    "category": {"status", "proposed_by", "merged_into_id", "created_at"},  # миграция 0007
+    "audit_log": {"details"},  # миграция 0008
+    "moderation_queue": {  # миграция 0008
+        "reason",
+        "prev_snapshot",
+        "resolved_at",
+        "resolved_by",
+    },
 }
 
 CREATE_TABLE = re.compile(r"CREATE TABLE (\w+) \((.*?)\n\);", re.S)

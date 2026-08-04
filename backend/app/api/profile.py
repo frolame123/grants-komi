@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db import get_db
+from app.dictionaries import APPROVED
 from app.models import AppUser, Category, OrgProfile
 from app.schemas import CategoryOut, OrgProfileIn, OrgProfileOut
 
@@ -14,8 +15,14 @@ router = APIRouter(prefix="/api", tags=["Профиль организации"]
 
 @router.get("/categories", response_model=list[CategoryOut])
 def list_categories(db: Session = Depends(get_db)) -> list[Category]:
-    """Справочник категорий: он же перечень отраслей для профиля (FR-016)."""
-    return list(db.scalars(select(Category).order_by(Category.name)))
+    """Справочник категорий: он же перечень отраслей для профиля (FR-016).
+
+    Наружу отдаются только утверждённые значения: предложенные ещё не прошли
+    согласование, объединённые заменены другими (п. 4.2.16 ТЗ).
+    """
+    return list(
+        db.scalars(select(Category).where(Category.status == APPROVED).order_by(Category.name))
+    )
 
 
 @router.get("/profile", response_model=OrgProfileOut)
@@ -39,8 +46,12 @@ def save_profile(
     Профиль один на пользователя: смена типа организации выполняется в нём же,
     новая запись не создаётся. ИНН уникален в системе — один ИНН, один профиль.
     """
-    if db.get(Category, data.category_id) is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Отрасль не найдена в справочнике")
+    category = db.get(Category, data.category_id)
+    if category is None or category.status != APPROVED:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Отрасль не найдена в справочнике или ещё не утверждена",
+        )
 
     taken = db.scalar(
         select(OrgProfile).where(

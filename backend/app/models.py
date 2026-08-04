@@ -42,6 +42,9 @@ class AppUser(Base):
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime)  # миграция 0005
+    email_notifications: Mapped[bool] = mapped_column(  # миграция 0010
+        Boolean, server_default=text("true")
+    )
 
     profile: Mapped["OrgProfile | None"] = relationship(back_populates="user")
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="user")
@@ -137,13 +140,51 @@ class Source(Base):
     schedule: Mapped[str] = mapped_column(String(50), default="daily")
 
 
+class ParserRun(Base):
+    """Лог прогона модуля агрегации (FR-006, миграция 0009)."""
+
+    __tablename__ = "parser_run"
+
+    run_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("source.source_id", ondelete="CASCADE"))
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+    status: Mapped[str] = mapped_column(String(20))
+    new_count: Mapped[int] = mapped_column(Integer, default=0)
+    updated_count: Mapped[int] = mapped_column(Integer, default=0)
+    archived_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    message: Mapped[str | None] = mapped_column(String(500))
+
+    source: Mapped["Source"] = relationship()
+
+
 class Category(Base):
-    """Категория программы (справочник, FR-016)."""
+    """Категория программы; она же отрасль профиля (справочник, FR-016).
+
+    Поля регламента ведения добавлены миграцией 0007: значение предлагает
+    контент-менеджер, утверждает администратор, дубли объединяются вместо
+    удаления.
+    """
 
     __tablename__ = "category"
 
     category_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True)
+    status: Mapped[str] = mapped_column(String(10), server_default=text("'approved'"))
+    proposed_by: Mapped[int | None] = mapped_column(
+        ForeignKey("app_user.user_id", ondelete="SET NULL")
+    )
+    merged_into_id: Mapped[int | None] = mapped_column(
+        ForeignKey("category.category_id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.current_timestamp()
+    )
+
+    merged_into: Mapped["Category | None"] = relationship(remote_side=[category_id])
 
 
 class Program(Base):
@@ -285,6 +326,13 @@ class ModerationQueue(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )
+    # Поля регламента модерации добавлены миграцией 0008
+    reason: Mapped[str | None] = mapped_column(String(300))
+    prev_snapshot: Mapped[dict | None] = mapped_column(JSONB)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
+    resolved_by: Mapped[int | None] = mapped_column(
+        ForeignKey("app_user.user_id", ondelete="SET NULL")
+    )
 
     program: Mapped[Program] = relationship()
 
@@ -323,3 +371,4 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )
+    details: Mapped[str | None] = mapped_column(String(500))  # миграция 0008
