@@ -90,6 +90,9 @@ jobs:
       - name: Сборка образа серверной части
         run: docker build -t grants-komi-backend ./backend
 
+      - name: Сборка образа клиентской части
+        run: docker build -t grants-komi-frontend ./frontend
+
       - name: Запуск контейнера и проверка отклика
         run: |
           docker run -d --name backend -p 8000:8000 \
