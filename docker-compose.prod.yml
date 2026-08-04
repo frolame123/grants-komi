@@ -1,0 +1,69 @@
+# Боевое развёртывание на VPS.
+#
+# Отличия от файла для разработки: клиент собирается в образ и раздаётся
+# веб-сервером, снаружи открыты только порты 80 и 443, база и сервер
+# приложения доступны исключительно внутри сети контейнеров.
+#
+# Запуск:  docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Наружу порт не публикуется: к базе обращается только сервер приложения
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers
+             --forwarded-allow-ips='*'"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - frontend_dist:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+
+  # Клиент собирается и складывает готовые файлы в общий том, откуда их
+  # раздаёт Caddy. Контейнер завершает работу после сборки — это разовая
+  # задача, а не постоянно работающая служба
+  frontend:
+    build: ./frontend
+    command: sh -c "cp -r /srv/. /dist/ && echo 'клиент собран и выложен'"
+    volumes:
+      - frontend_dist:/dist
+
+volumes:
+  pgdata:
+  frontend_dist:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

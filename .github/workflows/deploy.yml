@@ -1,0 +1,48 @@
+name: Развёртывание на сервер
+
+# Выкладка выполняется при слиянии в главную ветку. Рабочая ветка develop
+# сервер не трогает: в бой уезжает только то, что явно слито.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Обновление на VPS
+    runs-on: ubuntu-latest
+
+    # Задание включается переменной репозитория DEPLOY_ENABLED. Пока сервера
+    # нет, выкладка пропускается, и сборка не краснеет из-за отсутствия
+    # доступа. Настройки → Secrets and variables → Actions → Variables
+    if: vars.DEPLOY_ENABLED == 'true'
+
+    steps:
+      - name: Подключение и обновление
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -eu
+            cd /opt/grants-komi
+            git pull --ff-only
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f
+
+      - name: Проверка отклика
+        run: |
+          for attempt in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://${{ secrets.DEPLOY_DOMAIN }}/api/health" || true)
+            if [ "$code" = "200" ]; then
+              echo "сервер отвечает"
+              exit 0
+            fi
+            echo "попытка $attempt: код $code"
+            sleep 6
+          done
+          echo "сервер не ответил после обновления"
+          exit 1
