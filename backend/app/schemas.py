@@ -196,7 +196,10 @@ class UserAdminOut(BaseModel):
     """Строка списка пользователей в панели управления (FR-012)."""
 
     user_id: int
-    email: EmailStr
+    # Обычная строка, а не EmailStr: обезличенные учётные записи получают
+    # служебный адрес вида deleted-<id>@anonymized.local (FR-013), а домен
+    # .local зарезервирован и не проходит валидацию адреса.
+    email: str
     role: str
     role_name: str
     status: str
