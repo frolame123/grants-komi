@@ -71,7 +71,7 @@ export default function Catalog({ archive = false }) {
     const next = new URLSearchParams(params);
     if (value) next.set(field, value);
     else next.delete(field);
-    next.delete("page"); // смена условий возвращает к первой странице
+    if (field !== "page") next.delete("page"); // смена фильтров возвращает к первой странице
     setParams(next);
   }
 
