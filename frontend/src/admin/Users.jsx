@@ -70,6 +70,12 @@ export default function Users() {
       toast.success("Ссылка для смены пароля отправлена пользователю");
     });
 
+  const confirmEmail = (row) =>
+    act(row.user_id, async () => {
+      await api.post(`/api/admin/users/${row.user_id}/confirm-email`);
+      toast.success("Почта подтверждена");
+    });
+
   const pages = data ? Math.ceil(data.total / data.page_size) : 0;
 
   return (
@@ -197,6 +203,16 @@ export default function Users() {
                       <td className="py-2">
                         {!self && !row.deleted && (
                           <div className="flex flex-wrap gap-1">
+                            {row.status === "pending" && (
+                              <button
+                                type="button"
+                                className="btn-secondary px-2 py-1 text-xs"
+                                disabled={busy}
+                                onClick={() => confirmEmail(row)}
+                              >
+                                Подтвердить почту
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="btn-secondary px-2 py-1 text-xs"

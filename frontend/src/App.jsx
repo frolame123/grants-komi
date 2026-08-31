@@ -13,6 +13,7 @@ import Layout from "./components/Layout";
 import Applications from "./pages/Applications";
 import Catalog from "./pages/Catalog";
 import ConfirmEmail from "./pages/ConfirmEmail";
+import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ProgramList from "./pages/Matched";
 import NotFound from "./pages/NotFound";
@@ -39,7 +40,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Navigate to="/programs" replace />} />
+        <Route index element={<Home />} />
         <Route path="programs" element={<Catalog />} />
         <Route path="programs/:programId" element={<ProgramDetail />} />
         <Route path="archive" element={<Catalog archive />} />
