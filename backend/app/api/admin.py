@@ -236,3 +236,37 @@ def send_password_reset(
 
     mail.send_password_reset(user.email, token)
     return MessageOut(detail="Ссылка для смены пароля отправлена пользователю")
+
+
+@router.post("/{user_id}/confirm-email", response_model=UserAdminOut)
+def confirm_email(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: AppUser = Depends(require_role("admin")),
+) -> UserAdminOut:
+    """Подтверждение почты по инициативе администратора.
+
+    То же, что переход по ссылке из письма (pending → active), но вручную —
+    на случай, когда письмо не дошло. Применимо только к неподтверждённой
+    учётной записи.
+    """
+    user = load(db, user_id)
+    if user.deleted_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Учётная запись удалена пользователем")
+    if user.status != "pending":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Почта уже подтверждена")
+
+    user.status = "active"
+    write_audit(
+        db,
+        action="user_confirm_email",
+        entity="app_user",
+        entity_id=user.user_id,
+        user_id=admin.user_id,
+        ip=client_ip(request),
+    )
+    db.commit()
+
+    has_profile = db.scalar(select(OrgProfile.profile_id).where(OrgProfile.user_id == user_id))
+    return to_out(user, has_profile is not None)
