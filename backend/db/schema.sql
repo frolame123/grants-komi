@@ -385,14 +385,17 @@ CREATE TABLE audit_log (
     CONSTRAINT fk_audit_log_user_id FOREIGN KEY (user_id)
         REFERENCES app_user (user_id) ON DELETE SET NULL,
     CONSTRAINT chk_audit_log_action CHECK (
-        action IN ('login', 'logout', 'password_reset',
-                   'role_change', 'program_publish', 'program_archive',
-                   'account_delete')
+        action IN ('login', 'logout', 'password_reset', 'role_change',
+                   'program_publish', 'program_archive', 'account_delete',
+                   'register', 'rate_limit_block', 'user_block', 'user_unblock',
+                   'user_confirm_email', 'dict_propose', 'dict_approve',
+                   'dict_merge', 'program_create', 'program_update',
+                   'program_reject')
     )
 );
 
 COMMENT ON TABLE audit_log IS 'Журнал аудита действий пользователей (зависимая / слабая сущность от APP_USER)';
-COMMENT ON COLUMN audit_log.action IS 'Зафиксированное действие: login, logout, password_reset, role_change, program_publish, program_archive, account_delete';
+COMMENT ON COLUMN audit_log.action IS 'Зафиксированное действие (login, logout, регистрация, работа с учётными записями, модерация программ и справочников) — полный перечень в ограничении chk_audit_log_action';
 COMMENT ON COLUMN audit_log.entity IS 'Тип объекта, над которым совершено действие';
 COMMENT ON COLUMN audit_log.entity_id IS 'Идентификатор объекта, над которым совершено действие';
 COMMENT ON COLUMN audit_log.ip_address IS 'IP-адрес, с которого выполнено действие (IPv4/IPv6)';
