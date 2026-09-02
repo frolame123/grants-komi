@@ -1,0 +1,10 @@
+# Единый перевод строк во всём репозитории (LF), независимо от ОS разработчика.
+# Убирает предупреждения git «LF will be replaced by CRLF» на Windows.
+* text=auto eol=lf
+
+# Бинарные файлы не трогаем
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
+*.docx binary
